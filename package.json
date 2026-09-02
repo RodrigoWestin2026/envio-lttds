@@ -1,1 +1,12 @@
-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
+{
+  "name": "envio-lttds",
+  "version": "2.0.0",
+  "description": "Serviço de envio de e-mail da Plataforma TX — Latitudes (API Brevo)",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
