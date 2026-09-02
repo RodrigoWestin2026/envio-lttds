@@ -1,7 +1,7 @@
-/* Serviço de envio da Plataforma TX — Latitudes (v2 — API Brevo)
+/* Serviço de envio da Plataforma TX — Latitudes (v2.1 — API Brevo)
    Motivo da v2: o plano gratuito do Render bloqueia as portas de SMTP
    (25/465/587) desde set/2025. O Brevo envia por HTTPS (porta 443),
-   que não é bloqueada. Nenhuma senha fica neste arquivo. */
+   que não é bloqueada. Nenhuma senha ou chave fica neste arquivo. */
 
 const express = require("express");
 const cors = require("cors");
@@ -11,20 +11,23 @@ app.use(cors());
 app.use(express.json({ limit: "25mb" }));
 
 const {
-  BREVO_API_KEY,      // chave criada no painel do Brevo
+  BREVO_API_KEY,      // chave criada no painel do Brevo (SMTP & API > API Keys)
   REMETENTE = "contato@lttds.com.br",
   CHAVE_API,          // código combinado com a plataforma
   BCC = "rodrigo@lttds.com.br,ana@lttds.com.br"
 } = process.env;
 
 app.get("/", (req, res) => {
-  res.send("Serviço de envio Latitudes ativo (v2 — Brevo).");
+  res.send("Serviço de envio Latitudes ativo (v2.1 — Brevo).");
 });
 
 app.post("/enviar", async (req, res) => {
   try {
     if (!CHAVE_API || req.get("x-chave") !== CHAVE_API) {
       return res.status(401).json({ erro: "chave inválida" });
+    }
+    if (!BREVO_API_KEY) {
+      return res.status(500).json({ erro: "BREVO_API_KEY não está configurada no serviço" });
     }
     const { para, assunto, corpo, pdfBase64, nomeArquivo } = req.body || {};
     if (!para || !assunto || !corpo) {
@@ -56,17 +59,23 @@ app.post("/enviar", async (req, res) => {
     });
 
     if (!resposta.ok) {
-      const detalhe = await resposta.text();
+      let detalhe = "";
+      try { detalhe = (await resposta.json()).message || ""; }
+      catch (e) { detalhe = await resposta.text(); }
       console.error("Brevo recusou:", resposta.status, detalhe);
-      return res.status(500).json({ erro: "falha no envio" });
+      return res.status(500).json({
+        erro: "falha no envio",
+        codigoBrevo: resposta.status,
+        detalhe: detalhe || "sem detalhe retornado pelo Brevo"
+      });
     }
 
     res.json({ ok: true });
   } catch (e) {
     console.error("Falha no envio:", e.message);
-    res.status(500).json({ erro: "falha no envio" });
+    res.status(500).json({ erro: "falha no envio", detalhe: e.message });
   }
 });
 
 const porta = process.env.PORT || 3000;
-app.listen(porta, () => console.log("Serviço de envio (v2) na porta " + porta));
+app.listen(porta, () => console.log("Serviço de envio (v2.1) na porta " + porta));
